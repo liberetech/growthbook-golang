@@ -1,4 +1,4 @@
-module github.com/growthbook/growthbook-golang
+module github.com/liberetech/growthbook-golang
 
 go 1.18
 
