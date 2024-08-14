@@ -15,27 +15,27 @@ const (
 
 // Experiment defines a single experiment.
 type Experiment struct {
-	Key           string
-	Variations    []FeatureValue
-	Ranges        []Range
-	Meta          []VariationMeta
-	Filters       []Filter
-	Seed          string
-	Name          string
-	Phase         string
-	URLPatterns   []URLTarget
-	Weights       []float64
-	Condition     Condition
-	Coverage      *float64
-	Include       func() bool
-	Namespace     *Namespace
-	Force         *int
-	HashAttribute string
-	HashVersion   int
-	Active        bool
-	Status        ExperimentStatus
-	URL           *regexp.Regexp
-	Groups        []string
+	Key           string           `json:"key,omitempty"`
+	Variations    []FeatureValue   `json:"variations,omitempty"`
+	Ranges        []Range          `json:"ranges,omitempty"`
+	Meta          []VariationMeta  `json:"meta,omitempty"`
+	Filters       []Filter         `json:"filters,omitempty"`
+	Seed          string           `json:"seed,omitempty"`
+	Name          string           `json:"name,omitempty"`
+	Phase         string           `json:"phase,omitempty"`
+	URLPatterns   []URLTarget      `json:"urlPatterns,omitempty"`
+	Weights       []float64        `json:"weights,omitempty"`
+	Condition     Condition        `json:"condition,omitempty"`
+	Coverage      *float64         `json:"coverage,omitempty"`
+	Include       func() bool      `json:"include,omitempty"`
+	Namespace     *Namespace       `json:"namespace,omitempty"`
+	Force         *int             `json:"force,omitempty"`
+	HashAttribute string           `json:"hashAttribute,omitempty"`
+	HashVersion   int              `json:"hashVersion,omitempty"`
+	Active        bool             `json:"active,omitempty"`
+	Status        ExperimentStatus `json:"status,omitempty"`
+	URL           *regexp.Regexp   `json:"url,omitempty"`
+	Groups        []string         `json:"groups,omitempty"`
 }
 
 // NewExperiment creates an experiment with default settings: active,
