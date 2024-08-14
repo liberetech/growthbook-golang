@@ -2,8 +2,8 @@ package growthbook
 
 // Range represents a single bucket range.
 type Range struct {
-	Min float64
-	Max float64
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
 }
 
 func (r *Range) InRange(n float64) bool {
