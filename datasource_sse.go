@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 	"time"
@@ -102,9 +103,17 @@ func (ds *SseDataSource) connect(ctx context.Context) error {
 	}
 
 	ds.setReqHeaders(req)
+	backoff := time.Second
 	sseClient := &sse.Client{
 		HTTPClient: ds.client.data.httpClient,
 		OnRetry:    ds.onRetry(ctx),
+		ResponseValidator: func(r *http.Response) error {
+			err := sse.DefaultValidator(r)
+			if err == nil {
+				backoff = time.Second
+			}
+			return err
+		},
 		Backoff: sse.Backoff{
 			MaxInterval: ds.maxRetryInterval,
 		},
@@ -115,8 +124,30 @@ func (ds *SseDataSource) connect(ctx context.Context) error {
 	sseConn.SubscribeEvent("features", func(event sse.Event) {
 		ds.processEvent(event)
 	})
-	sseConn.Connect()
-	return nil
+
+	for {
+		err := sseConn.Connect()
+		if ctx.Err() != nil {
+			return nil
+		}
+
+		backoff = min(backoff, ds.maxRetryInterval)
+		delay := backoff/2 + rand.N(backoff/2+1)
+		backoff *= 2
+		ds.logger.WarnContext(ctx, "Reconnect", "reason", err, "delay", delay)
+
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+
+		if err := ds.loadData(ctx); err != nil {
+			ds.logger.ErrorContext(ctx, "Error loading features", "error", err)
+		}
+	}
 }
 
 func (ds *SseDataSource) onRetry(ctx context.Context) func(err error, delay time.Duration) {

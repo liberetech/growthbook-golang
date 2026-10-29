@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,6 +70,27 @@ func TestSseDataSource(t *testing.T) {
 		require.Equal(t, features2, client.Features())
 		err = client.Close()
 		require.Nil(t, err)
+	})
+
+	t.Run("Reconnect after an error response", func(t *testing.T) {
+		ts := startSseServer(featuresJSON, failFirst(http.StatusBadGateway, sseResponse(features2JSON, 10*time.Millisecond, 0)))
+		defer ts.http.Close()
+		logger, _ := testLogger(slog.LevelWarn, t)
+		client, err := NewClient(ctx,
+			WithLogger(logger),
+			WithHttpClient(ts.http.Client()),
+			WithApiHost(ts.http.URL),
+			WithClientKey("somekey"),
+			WithSseDataSource(WithSseMaxRetryInterval(5*time.Millisecond)),
+		)
+		require.Nil(t, err)
+		require.Nil(t, client.EnsureLoaded(ctx))
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			assert.Equal(c, features2, client.Features())
+		}, 5*time.Second, 10*time.Millisecond)
+		require.Equal(t, int32(2), ts.apicount.Load())
+		require.Equal(t, int32(2), ts.ssecount.Load())
+		require.Nil(t, client.Close())
 	})
 
 	t.Run("Don't reconnect after closing client", func(t *testing.T) {
@@ -230,6 +252,17 @@ func startSseServer(apiResponse []byte, sseResponseGen sseResponseGen) *sseTestS
 		}
 	}))
 	return &ts
+}
+
+func failFirst(status int, next sseResponseGen) sseResponseGen {
+	var calls atomic.Int32
+	return func(ctx context.Context, w http.ResponseWriter) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(status)
+			return
+		}
+		next(ctx, w)
+	}
 }
 
 func sseResponse(response string, delay time.Duration, lim int) sseResponseGen {
